@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulación de Bombas</title>
+<style>
+  /* Estilos CSS para la matriz y otros elementos */
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .container {
+    text-align: center;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(24, 20px); /* 24 columnas de 20px cada una */
+    grid-template-rows: repeat(10, 20px); /* 10 filas de 20px cada una */
+    gap: 2px;
+    margin: 0 auto;
+  }
+  .cell {
+    width: 20px;
+    height: 20px;
+    border: 1px solid black;
+    text-align: center;
+    line-height: 20px;
+  }
+  .btn {
+    margin: 5px;
+  }
+
+  .green {
+    background-color: lightgreen;
+  }
+  .red {
+    background-color: red;
+  }
+  .lightblue {
+    background-color: rgb(47, 138, 224);
+  }
+  .darkorange {
+    background-color: darkorange;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div id="matrix" class="grid"></div>
+    <br>
+    <label for="seed">Semilla (0-255):</label>
+    <input type="number" id="seed" min="0" max="255" value="0">
+    <br>
+    <label for="bombs">Número de Bombas (1-158):</label>
+    <input type="number" id="bombs" min="1" max="158" value="1">
+    <br>
+    <button onclick="startSimulation()">Iniciar Simulación</button>
+    <button onclick="nextStep()">Siguiente</button>
+    <button onclick="autoSimulation()">Auto</button>
+    <br>
+    <span id="stepDisplay">Paso: 0</span>
+  </div>
+
+  <script>
+    let seed = 0;
+    let bombs = 0;
+    let step = 0;
+    let bombsPlaced = 0; // Número de bombas colocadas
+    let matrix = [];
+    let hasPlacedAllBombs = false;
+    let hasPlaced1 = false; // Indica si se ha colocado el '1'
+    let hasPlaced2 = false; // Indica si se ha colocado el '2'
+    let autoInterval = null; // Para almacenar el intervalo de la simulación automática
+
+    function startSimulation() {
+      seed = parseInt(document.getElementById('seed').value);
+      bombs = parseInt(document.getElementById('bombs').value);
+
+      // Validar que no se coloquen más de 158 bombas
+      if (bombs > 158) {
+        alert('El número máximo de bombas permitido es 158.');
+        return; // Salir de la función si hay un error
+      }
+
+      // Validar que la semilla no sea mayor que 255
+      if (seed > 255) {
+        alert('La semilla debe ser un número entre 0 y 255.');
+        return; // Salir de la función si hay un error
+      }
+
+      step = 0;
+      bombsPlaced = 0;
+      hasPlacedAllBombs = false;
+      hasPlaced1 = false;
+      hasPlaced2 = false;
+      updateStepDisplay();
+
+      matrix = generateMatrix();
+      displayMatrix();
+    }
+
+    function generateMatrix() {
+      let matrix = [];
+      for (let i = 0; i < 10; i++) {
+        let row = [];
+        for (let j = 0; j < 24; j++) {
+          if ((i === 0 || i === 9 || j === 0 || j === 23) && !(i === 0 && j === 16)) {
+            row.push('*');
+          } else if (
+            (i === 2 && j === 6) || (i === 3 && j >= 9 && j <= 12) ||
+            (i === 5 && j >= 4 && j <= 6) || (i === 6 && j == 3) ||
+            (i === 7 && j >= 6 && j <= 11)
+          ) {
+            row.push('*');
+          } else {
+            row.push(' ');
+          }
+        }
+        matrix.push(row);
+      }
+      matrix[0][16] = 'M'; // Meta
+      matrix[1][16] = '&nbsp;';
+      return matrix;
+    }
+
+    function displayMatrix() {
+      let matrixDisplay = '';
+      for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 24; j++) {
+          matrixDisplay += `<div id="cell-${i}-${j}" class="cell">${matrix[i][j]}</div>`;
+        }
+      }
+      document.getElementById('matrix').innerHTML = matrixDisplay;
+    }
+
+    function nextStep() {
+      if (!hasPlacedAllBombs || !hasPlaced1 || !hasPlaced2) {
+        step++;
+        simulate();
+        updateStepDisplay();
+      } else {
+        alert("La simulación ha terminado.");
+      }
+    }
+
+    function autoSimulation() {
+      autoInterval = setInterval(() => {
+        nextStep();
+        if (hasPlacedAllBombs && hasPlaced1 && hasPlaced2) {
+          clearInterval(autoInterval);
+        }
+      }, 500); // Intervalo de 1 segundo entre pasos
+    }
+
+    function updateStepDisplay() {
+      document.getElementById('stepDisplay').textContent = `Paso: ${step}`;
+    }
+
+    function simulate() {
+      if (!hasPlacedAllBombs) {
+        seed = (5 * seed + 7) % 256;
+        let x = seed % 24;
+        let y = Math.floor(seed / 24);
+        
+        let cellElement = document.getElementById(`cell-${y}-${x}`);
+        
+        if (matrix[y][x] === ' ') {
+          matrix[y][x] = 'b';
+          cellElement.textContent = 'b';
+          cellElement.classList.add('green');
+          bombsPlaced++;
+          if (bombsPlaced === bombs) {
+            hasPlacedAllBombs = true;
+          }
+        } else {
+          cellElement.classList.add('darkorange');
+        }
+      } else if (!hasPlaced1) {
+        seed = (5 * seed + 7) % 256;
+        let x = seed % 24;
+        let y = Math.floor(seed / 24);
+
+        let cellElement = document.getElementById(`cell-${y}-${x}`);
+
+        if (matrix[y][x] === ' ') {
+          matrix[y][x] = '1';
+          cellElement.textContent = '1';
+          cellElement.classList.add('lightblue');
+          hasPlaced1 = true;
+        }
+      } else if (!hasPlaced2) {
+        seed = (5 * seed + 7) % 256;
+        let x = seed % 24;
+        let y = Math.floor(seed / 24);
+
+        let cellElement = document.getElementById(`cell-${y}-${x}`);
+
+        if (matrix[y][x] === ' ') {
+          matrix[y][x] = '2';
+          cellElement.textContent = '2';
+          cellElement.classList.add('red');
+          hasPlaced2 = true;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
